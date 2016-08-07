@@ -6,6 +6,10 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+    "repository": {
+    "type": "git",
+    "url":"https://github.com/tito21/lyrify.git"
+  },
   "author": "Alberto Di Biase",
   "license": "MIT",
   "dependencies": {
