@@ -1,0 +1,230 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"></meta>
+    <link rel="shortcut icon" href="/favicon.png">
+    <title>Lyrics</title>
+    <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro" rel="stylesheet"> 
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/handlebarsjs/4.0.5/handlebars.min.js"></script>
+    <style type="text/css">
+    /* Colors: #FFFF0E, #26C6FF, #FF7900, #FF1900, #22F22D
+                                 #CE6200
+    */
+      body {
+        background-color: #22F22D;
+        margin: 0;
+        font-family: 'Source Sans Pro', Arial, sans-serif;
+      }
+      a {
+        color : #FF7900;
+        text-decoration : none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .update {
+        color: white;
+        font-weight: bold;
+        background: #FF7900;
+        border: transparent;
+        border-radius: 20px;
+        display: block;
+        margin: 0 auto;
+        padding: 0.3em 1.2em 0.3em 1.2em;
+      }
+      .update:hover {
+        background: #CE6200;
+        cursor: pointer;
+
+      }
+      #container {
+        width: 50%;
+        min-height: 300px;
+        margin: 8px auto;
+        padding: 4px;
+        text-align: center;
+        background-color: #fff;
+        box-shadow: 0 0 0.5em;
+        border-radius: 10px;        
+      }
+      #song_title {
+        font-size: 1.5em;
+        padding: 5px;
+        text-shadow: 1px 1px 1px black;
+      }
+      #artist_title {
+        font-size: 1em
+      }
+      .pre {
+        margin: 0 auto;
+        white-space: pre-wrap;
+
+      }
+      #login {
+        position: fixed;
+        top:3em;
+        left:0;
+        padding:.75em;
+        width: 17%;
+        background-color: #fff;
+        box-shadow: 0 0 0.5em;
+        border-radius: 0px 4px 4px 0;
+      }
+
+      form div {
+        margin: 0 0 .3em .3em
+      }
+
+      .loading, .error {
+        font-size: 1.5em;
+      
+        margin: 2em 0px 2em 0;
+      }
+      .loading {
+        font-size: 2.5em;
+      }
+      #loading-dots {
+        position: relative;
+        animation: 3s 0s infinite alternate ease-in-out  pulse;
+      }
+      @keyframes pulse {
+        from {
+          left: 0;
+        }
+        to {
+          left: 100px;
+        }
+      }
+    </style>
+  </head>
+  <body class="b">
+    <div id="container">
+    <script id="error-template" type="text/x-handlebars-template">
+      <p class="error">There was an error: {{message}}</p>
+    </script>
+    <script id="lyric-template" type="text/x-handlebars-template">
+      <article class="content">
+        <header class="title">
+          <h1 id="song_title"><a href="{{track.url}}">{{track.name}}</a></h1>
+          <h2 id="artist_title"><a href="{{track.artist.url}}">{{track.artist.name}}</a> (<a href="{{track.album.url}}">{{track.album.title}}</a>)</h2>
+        </header>
+        <section class="lyrics">
+        {{#if track.lyric.found}}
+          {{#if track.lyric.conflict}}
+            <p>This lyrics are probably from another song. You can request new lyrics <a href="{{track.lyric.request.url}}">here</a></p>
+          {{/if}}
+          <p id="lyric" class="pre">{{{track.lyric.lyric}}}</p>
+        {{else}}
+        <p>Lyrics for this song are not avialable, but you can add them <a href="{{track.lyric.requestUrl}}">here</a></p>
+        {{/if}}
+        </section>
+        <footer>
+          <p>Send correction <a href="{{track.lyric.correctUrl}}">here</a></p>
+          <p>Lyrics by <a href="{{track.lyric.url}}">{{track.lyric.provider}}</a></p>
+        </footer>
+      </article>
+    </script>
+    <div class="loading">Loading<span id="loading-dots">...</span></div>
+    </div>
+    <div id="login">
+        <p>Music from last.fm user: <span class="user">username</span></p>
+        <form onsubmit="update(); return false;" autocomplete="true">
+          <div><label>Username: </label><input type="text" name="username" id="username" style="width: 10em"></div>
+          <div><input type="checkbox" name="autoupdate" id="autoupdate" title="Tries to auto update the data when the song has finshed"><label>Auto update </label></div>
+          <div><input type="checkbox" name="rember"><label>Rember me</label></div>
+          <button class="update">Update</button>
+        </form>
+      </div>
+    <script type="text/javascript">
+    var username = "tito2197";
+    var container = $("#container");
+    var u = $("#username");
+    var a = $("#autoupdate");
+    
+    var trackDuration = 0;
+
+    function getData(username) {
+      
+      $.getJSON("/data?user=" + username, function(data){
+        console.log("recived")
+        console.log(data);
+        if (data.error.code != 0) {
+          $(".content").remove();
+          putError(data);
+        }
+        else {
+          putData(data);
+          $(".error").remove()
+        }
+     });
+    }
+
+    function putError(data) {
+      console.log("error", data.error)
+      if (data.error.code == 1 || data.error.code == 2) {
+        if (data.error.code == 1) {
+          console.log(data.error.message)
+          data.error.message = "Network error" + JSON.stringify(data.error);
+        }
+        console.log(data.error);
+        $(".error").remove();
+        var source = $("#error-template").html();
+        var template = Handlebars.compile(source);
+        container.append(template(data.error));
+      }
+      else if (data.error.code == 3 || data.error.code == 4) { // Just missing exrtra info
+        putData(data)
+      }
+    }
+
+    function putData(data) {
+      trackDuration = data.track.duration;
+      $("title").empty().append(data.track.name + " - " + data.track.artist.name + " Lyrics");
+      if (data.track.lyric.html) { 
+        $("#lyric").removeClass("pre");
+      }
+      else {
+       $("#lyric").addClass("pre");
+      }
+      $(".content, .error").remove();
+      var source = $("#lyric-template").html();
+      var template = Handlebars.compile(source);
+      container.append(template(data));
+      $(".user").empty().append(data.user.name);
+      $(".loading").hide();
+    }
+
+    function update() {
+      username = u.val();
+      autoupdate = a.val();
+      console.log(username, a);
+      getData(username);
+      if (autoupdate && trackDuration > 0) {
+        console.log(trackDuration);
+        var timer = setTimeout(function() {
+          getData(username);
+          console.log("update");
+        }, trackDuration + 500);
+      }
+      else {
+        clearTimeout(timer);
+        console.log("no update")
+      }
+     }
+    $(document).ajaxStart(function(){
+      $(".loading").show();
+      $(".error").remove();
+      $(".content").remove();
+    }).ajaxStop(function(){
+      $(".loading").hide();
+    }).ajaxError(function(event, jqxhpr, settings, trownError){
+      var data = { error: { code: 1, message: trownError}}
+      console.log("ajaxError")
+      putError(data);
+    });
+    update();
+    </script>
+  </body>
+</html>
