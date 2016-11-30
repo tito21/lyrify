@@ -1,5 +1,6 @@
 {
 	"key" : "Last.fm API_KEY",
 	"lastfmUrl" : "http://ws.audioscrobbler.com/2.0/",
-	"chartLyricsUrl" : "http://api.chartlyrics.com/apiv1.asmx/"
+	"chartLyricsUrl" : "http://api.chartlyrics.com/apiv1.asmx/",
+	"azlyricsUrl" : "http://www.azlyrics.com/lyrics/"
 }

@@ -113,7 +113,7 @@
         <section class="lyrics">
         {{#if track.lyric.found}}
           {{#if track.lyric.conflict}}
-            <p>This lyrics are probably from another song. You can request new lyrics <a href="{{track.lyric.request.url}}">here</a></p>
+            <p>This lyrics are probably from another song. You can request new lyrics <a href="{{track.lyric.requestUrl}}">here</a></p>
           {{/if}}
           <p id="lyric" class="pre">{{{track.lyric.lyric}}}</p>
         {{else}}
@@ -166,7 +166,7 @@
       if (data.error.code == 1 || data.error.code == 2) {
         if (data.error.code == 1) {
           console.log(data.error.message)
-          data.error.message = "Network error" + JSON.stringify(data.error);
+          data.error.message = "Network error" + JSON.stringify(data.error.message);
         }
         console.log(data.error);
         $(".error").remove();
@@ -174,7 +174,7 @@
         var template = Handlebars.compile(source);
         container.append(template(data.error));
       }
-      else if (data.error.code == 3 || data.error.code == 4) { // Just missing exrtra info
+      else if (data.error.code == 3 || data.error.code == 4) { // Just missing extra info
         putData(data)
       }
     }

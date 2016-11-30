@@ -50,7 +50,7 @@ var getCurrentTrack = function(user, track, callback) {
 
 // adds extra artist and album info to the track
 var getMoreInfo = function (track, callback) {
-	url = config.lastfmUrl + "?method=track.getinfo&track=" + track.name + "&artist=" + track.artist + "&api_key=" + config.key + "&format=json"
+	url = config.lastfmUrl + "?method=track.getinfo&track=" + track.name + "&artist=" + track.artist.name + "&api_key=" + config.key + "&format=json"
 	console.log("more info", url)
 	error = { code: 0, message: ""}
 	values = {

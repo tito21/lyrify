@@ -21,6 +21,7 @@ var track = {
 
 var app = express();
 
+// Old functions
 var getCurrentTrack = function(user, callback) {
 	//url = config.lastfmUrl + "?method=user.getrecenttracks&limit=1&user=" + user.name + "&api_key=" + config.key + "&format=json"
 	console.log("track");

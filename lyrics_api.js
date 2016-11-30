@@ -2,6 +2,7 @@
 
 
 var request = require("request");
+
 var cheerio = require("cheerio");
 var xml2js = require("xml2js");
 
@@ -9,8 +10,8 @@ var baseUrl = "http://www.azlyrics.com/lyrics/"
 
 // Gets the lyrics for the song and artist provaided from AZLyrics.com
 var getAZLyrics = function(artist, song, callback) {
-	artist = artist.replace(/[\s-]/g, '').toLowerCase();
-	song = song.replace(/[\s()-]/g, '').toLowerCase();
+	artist = artist.replace(/[\u00C0-\u017F\s\-()]/g, '').toLowerCase();
+	song = song.replace(/[\u00C0-\u017F\s\-()]/g, '').toLowerCase();
 	url = baseUrl + artist + "/" + song.toLowerCase() + ".html"
 
 	error = {code: 0, message: 0};
@@ -20,27 +21,33 @@ var getAZLyrics = function(artist, song, callback) {
 		"found": false,
 		"lyric": [""],
 		"correctUrl": "http://www.azlyrics.com/add.php",
-		"url": "http://www.azlyrics.com",
+		"url": url,
 		"requestUrl": "http://requestlyrics.com",
 		"provider": "AZ Lyrics",
 		"html": true,
 	};
-	request(url, function (err, response, body) {
-		if (!err && response.statusCode == 200) {
-			azwebpage = cheerio.load(body);
-			l = azwebpage(".ringtone").siblings().eq(7).html()
-			lyric["found"] = true;
-			lyric["lyric"] = l;
-			lyric["url"] = response.url
-		}
-		else {
-			error = {code: 2, message: err};
-
-		}
-		//console.log(error, lyric)
-		callback(error, lyric)
+	return new Promise(function (resolve, reject){
+		request(url, function (err, response, body) {
+			console.log(response.uri)
+			if (!err && response.statusCode == 200) {
+				azwebpage = cheerio.load(body);
+				l = azwebpage(".ringtone").siblings().eq(7).html()
+				lyric["found"] = true;
+				lyric["lyric"] = l;
+				resolve(lyric);
+			}
+			else if (response.statusCode == 404) {
+				lyric["found"] = false;
+				console.log("AZ", error, lyric)
+				error = { code: 4, message: "Lyrics not found"}
+				reject(error);
+			}
+			else {
+				error = {code: 4, message: err};
+				reject(error);
+			}
+		});
 	});
-
 }
 
 // Gets the lyrics for the song and artist provaided from chartlyrics.com
@@ -67,60 +74,77 @@ var getChartLyrics = function(artist, song, callback) {
 		url: url,
 		// qs: values
 	};
-	request(options, function (err, response, body) {
-		if (!err && response.statusCode == 200) {
-			xml2js.parseString(body, function (err, result) {
-				if (result.GetLyricResult.LyricId > 0) {
-					lyric["found"] = true
-					if (result.GetLyricResult.LyricSong != song || result.GetLyricResult.LyricArtist != artist) {
-						lyric["conflict"] = true
+	return new Promise(function(resolve, reject){
+		request(options, function (err, response, body) {
+			if (!err && response.statusCode == 200) {
+				xml2js.parseString(body, function (err, result) {
+					lyric["lyric"] = result.GetLyricResult.Lyric;
+					lyric["url"] = result.GetLyricResult.LyricUrl;
+					lyric["correctUrl"] = result.GetLyricResult.LyricCorrectUrl;
+					if (result.GetLyricResult.LyricId > 0) {
+						lyric["found"] = true
+						if (result.GetLyricResult.LyricSong != song || result.GetLyricResult.LyricArtist != artist) {
+							lyric["conflict"] = true
+						}
+						console.log("Chart", error, lyric)
+						resolve(lyric)
 					}
-				}
-				else {
-					lyric["found"] = false
-				}
-				//console.log(lyric)
-				lyric["lyric"] = result.GetLyricResult.Lyric;
-				lyric["url"] = result.GetLyricResult.LyricUrl;
-				lyric["correctUrl"] = result.GetLyricResult.LyricCorrectUrl;
-				//console.log(error, lyric);
-				callback(error, lyric);
-			});
+					else {
+						lyric["found"] = false;
+						console.log("Chart", error, lyric)
+						error = {
+							code: 4, // error loading lyrics
+							message: "Lyrics not found",
+						};
+						reject(error)
+					}
+					//console.log(lyric)
+					//console.log(error, lyric);
+				});
 
-		}
-		else {
-			error = {
-				code: 4, // error loading lyrics
-				message: err,
-			};
-		console.log(error, lyric)
-		callback(error, lyric)
-		}
+			}
+			else {
+				error = {
+					code: 4, // error loading lyrics
+					message: err,
+				};
+				//console.log(error, lyric)
+				reject(error)
+			}
+		});
 	});
 };
 
 var get = function(artist, song, callback) {
-	r = 0
-	getChartLyrics(artist, song, function(error, lyrics){
-		if (error.code == 0) {
-			if (lyrics.found && !lyrics.conflict) {
-				if (!r) {
-					console.log("Chart")
-					r = 1
-					callback(error, lyrics)
-				}
-			}
+	tasks = [getAZLyrics(artist, song), getChartLyrics(artist, song)];
+
+	error = {code: 0, message: ""};
+	var lyric = { // default lyric data
+		"found": false,
+		"lyric": [""],
+		"correctUrl": "http://www.azlyrics.com/add.php",
+		"url": "http://www.azlyrics.com/",
+		"requestUrl": "http://requestlyrics.com",
+		"provider": "AZ Lyrics",
+		"html": true,
+	};
+
+	Promise.race(tasks).then(function(l){
+		console.log("Found", l);
+		if (!l.conflict) {
+			callback(error, l)
 		}
+		else {
+			console("conflict")
+			callback(error, l);
+		}
+	}, function(err){
+		callback(err, lyric)
 	});
-	getAZLyrics(artist, song, function(error , lyrics){
-		if (error.code == 0 && lyrics.found) {
-			if (!r) {
-					console.log("AZ")
-					r = 1
-					callback(error, lyrics)
-				}
-		}
-	})
+	// , function(e) {
+	//	console.log("Error", e);
+	// 	callback(e, lyric)
+	// });
 };
 
 exports.get = get;
